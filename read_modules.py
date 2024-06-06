@@ -65,7 +65,7 @@ def check_predominance( target, value, handbook ) :
    for mkey, mvalue in value.items() :
        if mkey not in handbook.keys() : continue 
 
-       if float(getFinalMark( mvalue ))>target : 
+       if float(getFinalMark( mvalue ))>=target : 
           if handbook[mkey]["level"]==1 : nl1 = nl1 + handbook[mkey]["CATS"]/20
           elif handbook[mkey]["level"]==2 : nl2 = nl2 + handbook[mkey]["CATS"]/20
           else : nl3 = nl3 + handbook[mkey]["CATS"]/20
