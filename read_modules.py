@@ -3,6 +3,7 @@ import numpy as np
 import glob
 import math
 import json
+import os
 
 def getMaximumMark( mvalue ) :
     if "resit_mark" not in mvalue.keys() : 
@@ -29,6 +30,7 @@ def addRecordToDict( row, data, output ) :
    else :
       saved_result = output[module]
       output[module] = getMark( row, data, output["studentno"] )
+      if "resit_mark" not in output[module].keys() : output[module]["resit_mark"], output[module]["resit_EBN"] = [], []
       output[module]["resit_mark"].append( saved_result["mark"] )
       output[module]["resit_EBN"].append( saved_result["EBN"] )
       if "resit_EBN" in saved_result.keys() :
@@ -73,6 +75,12 @@ def check_predominance( target, value, handbook ) :
    if 10*nl1 + 30*nl2 + 60*nl3>=300 : return "yes"
    return "no"
 
+# Check if there is a completed file
+completed_students = []
+if os.path.exists("completed.xlsx") :
+   complete_data = pd.read_excel("completed.xlsx")
+   completed_students = complete_data["ID"].tolist()
+
 # Read in the excel 1st sheet of the excel file that contains the student modules
 data = pd.read_excel('QSR_EXAM_RESULTS_1379.xlsx')
 
@@ -82,6 +90,7 @@ with open("../handbook.json") as h : handbook = json.load(h)
 students = {}
 for row in data.itertuples() :
    studentno = data['ID'].at[row.Index]
+   if studentno in completed_students : continue
    module = data["Subject"].at[row.Index] + str(data["Catalog"].at[row.Index])
 
    # Check we know what this module is
@@ -101,13 +110,15 @@ for row in data.itertuples() :
       addRecordToDict( row, data, students[studentno] )
 
 # Now read in all the level three modules
+tabname = "Supplementary"   # "Main"    # Specify which tab of the grade roster to read in
 for module in list(glob.glob('*.xlsx')):
-    if module == 'QSR_EXAM_RESULTS_1379.xlsx' : continue
+    if module == 'QSR_EXAM_RESULTS_1379.xlsx' or module == "completed.xlsx" : continue
     modulename = module.replace(".xlsx","")
     print("GETTING DATA FOR MODULE", module )
-    module_df = pd.read_excel(module,skiprows=39)
+    module_df = pd.read_excel(module,tabname,skiprows=39)
     for row in module_df.itertuples() :
         studentno = module_df["Student No"].at[row.Index]
+        if studentno in completed_students : continue
         markdata = { "mark": str(module_df["Mark"].at[row.Index]), "EBN": module_df["EBN"].at[row.Index] }
         if studentno not in students.keys() :
            localdict = {} 
@@ -120,7 +131,20 @@ for module in list(glob.glob('*.xlsx')):
            elif "resit_EBN" in students[int(studentno)][modulename].keys() and students[int(studentno)][modulename]["resit_EBN"][-1]=="U"  :
               students[int(studentno)][modulename]["resit_mark"][-1] = str(module_df["Mark"].at[row.Index])
               students[int(studentno)][modulename]["resit_EBN"][-1] =  module_df["EBN"].at[row.Index] 
-           else : raise Exception("Found erroneous marks for student " + str(studentno) + " in module " + modulename )
+           else : 
+              different=False
+              for key, data in students[int(studentno)][modulename].items() :
+                  if key not in markdata.keys() : raise Exception("mismatched keys in dictionaries")
+                  elif data!=markdata[key] :
+                     try: 
+                        ddd = float(data) - float(markdata[key])
+                        if ddd!=0 and not math.isnan(data) and not math.isnan(markdata[key]) : different=True
+                     except: 
+                        if markdata[key] not in data : different=True
+              if different and "resit_EBN" not in students[int(studentno)][modulename].keys() : 
+                 students[int(studentno)][modulename]["resit_mark"] = [markdata["mark"]]
+                 students[int(studentno)][modulename]["resit_EBN"] = [markdata["EBN"]]
+              elif different : raise Exception("Found erroneous marks for student " + str(studentno) + " in module " + modulename )
         elif "degprogram" in students[int(studentno)].keys() : 
            print( "Found rogue module for student", students[int(studentno)] )
 
@@ -129,6 +153,7 @@ print("GOT ALL MODULE DATA")
 # Find out what marks are missing
 missing_modules = set()
 for key, value in students.items() :
+    if value["studentno"] in completed_students : continue
     l1cats, l2cats, l3cats, l1average, l2average, l3average, l2fails, l3fails, l3absm, nmiss = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0  
     for mkey, mvalue in value.items() :
         if mkey not in handbook.keys() : continue 

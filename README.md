@@ -4,6 +4,11 @@ This script can be used to calculate the final (averaged) marks that students ge
 
 1. An excel spreadsheet called `QSR_EXAM_RESULTS_1379.xlsx` that contains information on every module the student has ever enrolled on.  Staff in the education office can download this spreadsheet from QSIS.
 2. Grade rosters for all the modules for which marks are available.  These grade rosters should be named `{module code}.xlsx`.
+3. (OPTIONAL) An excel spreadsheet called `completex.xlsx` that contains information on students who have graduated so we can exclude them when collating marks during the resit period.
+
+Key variables
+
+1. `tabname` - the name of the tab in the grade rosters from which mark data should be read
 
 It outputs a directory called `Results` that contains 6 files:
 
@@ -17,3 +22,7 @@ It outputs a directory called `Results` that contains 6 files:
 The excel files are generated from `student_marks.json` so in theory there could be two separate scripts with the second taking `student_marks.json` as its input.
 
 Headings in the excel files are self explanatory.  If the code outputs a message about a student to standard output then the reason that message is being output should be manually investigated.
+
+--
+
+On my computer all libraries for this module are installed in plumed-metatensor conda environment
